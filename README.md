@@ -1,453 +1,387 @@
 # chess.play<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chess Arena — Современные шахматы</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
-    <style>
-        :root {
-            --bg-color: #121214;
-            --panel-bg: #1e1e24;
-            --accent-color: #26ab63;
-            --accent-hover: #219653;
-            --text-main: #f0f0f3;
-            --text-muted: #9ba1a6;
-            --border-color: #2f2f38;
-        }
+<script>
+    var audioContext;
+    var soundEnabled = true;
+    var whiteTime = 600;
+    var blackTime = 600;
+    var timerInterval = null;
+    var gameStarted = false;
+    var botColor = 'b'; // бот играет чёрными
+    var botThinking = false;
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .app-container {
-            display: flex;
-            gap: 30px;
-            max-width: 900px;
-            width: 100%;
-            background: var(--panel-bg);
-            padding: 25px;
-            border-radius: 16px;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-            border: 1px solid var(--border-color);
-        }
-
-        .board-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .player-card {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 400px;
-            padding: 10px 14px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--text-muted);
-        }
-
-        .player-card.active {
-            border-left: 4px solid var(--accent-color);
-            color: var(--text-main);
-            background: rgba(38, 171, 99, 0.08);
-        }
-
-        .player-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .avatar {
-            width: 28px;
-            height: 28px;
-            background: #3f3f4e;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            color: white;
-        }
-
-        #board {
-            width: 400px;
-            margin: 12px 0;
-            border-radius: 4px;
-            overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        }
-
-        .sidebar {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .game-title {
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--text-main);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        #status {
-            font-size: 15px;
-            color: var(--accent-color);
-            font-weight: 600;
-            background: rgba(38, 171, 99, 0.1);
-            padding: 10px 14px;
-            border-radius: 8px;
-            border: 1px solid rgba(38, 171, 99, 0.2);
-        }
-
-        .moves-box {
-            flex: 1;
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 12px;
-            overflow-y: auto;
-            max-height: 250px;
-            font-family: monospace;
-            font-size: 14px;
-            color: var(--text-muted);
-        }
-
-        .moves-box table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .moves-box td {
-            padding: 4px 8px;
-        }
-
-        .controls {
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn {
-            flex: 1;
-            background-color: var(--accent-color);
-            color: white;
-            border: none;
-            padding: 12px;
-            font-size: 14px;
-            font-weight: 600;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
-        }
-
-        .btn:hover {
-            background-color: var(--accent-hover);
-        }
-
-        .btn-secondary {
-            background-color: #2f2f38;
-            color: var(--text-main);
-        }
-
-        .btn-secondary:hover {
-            background-color: #3f3f4e;
-        }
-
-        .sound-control {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .sound-control:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .sound-icon {
-            font-size: 16px;
-        }
-
-        .sound-label {
-            font-size: 13px;
-            color: var(--text-muted);
-        }
-
-        @media (max-width: 800px) {
-            .app-container {
-                flex-direction: column;
-                align-items: center;
-            }
-            #board, .player-card {
-                width: 320px;
+    function initAudio() {
+        if (!audioContext) {
+            var AudioCtor = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtor) {
+                audioContext = new AudioCtor();
             }
         }
-    </style>
-</head>
-<body>
-    <div class="app-container">
-        <div class="board-section">
-            <div class="player-card" id="blackPlayerCard">
-                <div class="player-info">
-                    <div class="avatar">🤖</div>
-                    <span>Соперник (Черные)</span>
-                </div>
-            </div>
+    }
 
-            <div id="board"></div>
+    function playTone(freq, duration, gainLevel, delay) {
+        if (!soundEnabled || !audioContext) return;
+        if (delay === undefined) delay = 0;
 
-            <div class="player-card active" id="whitePlayerCard">
-                <div class="player-info">
-                    <div class="avatar">👤</div>
-                    <span>Вы (Белые)</span>
-                </div>
-            </div>
-        </div>
+        try {
+            var oscillator = audioContext.createOscillator();
+            var gainNode = audioContext.createGain();
 
-        <div class="sidebar">
-            <div class="game-title">
-                <span>♟️</span> Chess Arena
-            </div>
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(freq, audioContext.currentTime + delay);
+            gainNode.gain.setValueAtTime(0.0001, audioContext.currentTime + delay);
+            gainNode.gain.exponentialRampToValueAtTime(gainLevel, audioContext.currentTime + delay + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + delay + duration);
 
-            <div id="status">Ход белых</div>
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
 
-            <div class="moves-box">
-                <table id="movesTable"></table>
-            </div>
-
-            <div class="sound-control" id="soundToggle">
-                <span class="sound-icon" id="soundIcon">🔊</span>
-                <span class="sound-label">Звук</span>
-            </div>
-
-            <div class="controls">
-                <button class="btn" id="resetBtn">Новая игра</button>
-                <button class="btn btn-secondary" id="undoBtn">Назад</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
-
-    <script>
-        var board = null;
-        var game = new Chess();
-        var statusEl = $('#status');
-        var whiteCard = $('#whitePlayerCard');
-        var blackCard = $('#blackPlayerCard');
-        var soundEnabled = true;
-        var soundIcon = $('#soundIcon');
-
-        // Создаем звуковые контексты
-        var audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-        // Функции для создания звуков
-        function playMoveSound() {
-            if (!soundEnabled) return;
-            
-            var now = audioContext.currentTime;
-            var osc = audioContext.createOscillator();
-            var gain = audioContext.createGain();
-            
-            osc.connect(gain);
-            gain.connect(audioContext.destination);
-            
-            osc.frequency.setValueAtTime(800, now);
-            osc.frequency.exponentialRampToValueAtTime(400, now + 0.1);
-            gain.gain.setValueAtTime(0.3, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-            
-            osc.start(now);
-            osc.stop(now + 0.1);
+            oscillator.start(audioContext.currentTime + delay);
+            oscillator.stop(audioContext.currentTime + delay + duration);
+        } catch (e) {
+            console.log('Audio error:', e);
         }
+    }
 
-        function playCheckSound() {
-            if (!soundEnabled) return;
-            
-            var now = audioContext.currentTime;
-            var osc = audioContext.createOscillator();
-            var gain = audioContext.createGain();
-            
-            osc.connect(gain);
-            gain.connect(audioContext.destination);
-            
-            // Двойной звук для шаха
-            osc.frequency.setValueAtTime(1000, now);
-            osc.frequency.exponentialRampToValueAtTime(600, now + 0.08);
-            gain.gain.setValueAtTime(0.3, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
-            
-            osc.start(now);
-            osc.stop(now + 0.08);
-            
-            // Второй звук
-            osc.frequency.setValueAtTime(800, now + 0.1);
-            osc.frequency.exponentialRampToValueAtTime(500, now + 0.18);
-            gain.gain.setValueAtTime(0.25, now + 0.1);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
-            
-            osc.start(now + 0.1);
-            osc.stop(now + 0.18);
-        }
+    function playMoveSound() {
+        playTone(420, 0.09, 0.08);
+    }
 
-        function playCheckmateSound() {
-            if (!soundEnabled) return;
-            
-            var now = audioContext.currentTime;
-            var osc = audioContext.createOscillator();
-            var gain = audioContext.createGain();
-            
-            osc.connect(gain);
-            gain.connect(audioContext.destination);
-            
-            var frequencies = [523.25, 659.25, 783.99]; // До, Ми, Соль (аккорд)
-            var duration = 0.3;
-            
-            // Первая нота
-            osc.frequency.setValueAtTime(frequencies[0], now);
-            gain.gain.setValueAtTime(0.2, now);
-            gain.gain.linearRampToValueAtTime(0.15, now + duration);
-            osc.start(now);
-            osc.stop(now + duration);
-            
-            // Вторая нота
-            osc.frequency.setValueAtTime(frequencies[1], now + duration);
-            gain.gain.setValueAtTime(0.2, now + duration);
-            gain.gain.linearRampToValueAtTime(0.15, now + 2 * duration);
-            osc.start(now + duration);
-            osc.stop(now + 2 * duration);
-            
-            // Третья нота
-            osc.frequency.setValueAtTime(frequencies[2], now + 2 * duration);
-            gain.gain.setValueAtTime(0.2, now + 2 * duration);
-            gain.gain.linearRampToValueAtTime(0.1, now + 3.5 * duration);
-            osc.start(now + 2 * duration);
-            osc.stop(now + 3.5 * duration);
-        }
+    function playCaptureSound() {
+        playTone(540, 0.12, 0.08);
+    }
 
-        function updateUI() {
-            var moveColor = game.turn() === 'w' ? 'Белые' : 'Черные';
+    function playCheckSound() {
+        playTone(620, 0.15, 0.08);
+        playTone(740, 0.15, 0.06, 0.08);
+    }
 
+    function playCheckmateSound() {
+        playTone(520, 0.18, 0.08);
+        playTone(660, 0.18, 0.08, 0.1);
+        playTone(820, 0.22, 0.08, 0.2);
+    }
+
+    function formatTime(seconds) {
+        var mins = Math.floor(seconds / 60);
+        var secs = seconds % 60;
+        return (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+    }
+
+    function updateTimerDisplay() {
+        $('#whiteTimer').text(formatTime(whiteTime));
+        $('#blackTimer').text(formatTime(blackTime));
+    }
+
+    function startTimer() {
+        if (timerInterval) clearInterval(timerInterval);
+
+        timerInterval = setInterval(function() {
             if (game.turn() === 'w') {
-                whiteCard.addClass('active');
-                blackCard.removeClass('active');
+                whiteTime--;
+                if (whiteTime < 0) {
+                    clearInterval(timerInterval);
+                    gameOver('Черные победили (время белых истекло)');
+                }
             } else {
-                blackCard.addClass('active');
-                whiteCard.removeClass('active');
+                blackTime--;
+                if (blackTime < 0) {
+                    clearInterval(timerInterval);
+                    gameOver('Белые победили (время черных истекло)');
+                }
             }
+            updateTimerDisplay();
+        }, 1000);
+    }
 
-            let statusText = 'Ход: ' + moveColor;
-            if (game.in_checkmate()) {
-                statusText = 'Мат! Победа ' + (game.turn() === 'w' ? 'Черных' : 'Белых');
-                playCheckmateSound();
-            } else if (game.in_draw()) {
-                statusText = 'Ничья!';
-            } else if (game.in_check()) {
-                statusText += ' (Шах!)';
-                playCheckSound();
-            }
-            statusEl.text(statusText);
+    var board = null;
+    var game = new Chess();
 
-            updateMovesTable();
-        }
+    function squareFromCoords(file, rank) {
+        return String.fromCharCode(97 + file) + (8 - rank);
+    }
 
-        function updateMovesTable() {
-            var history = game.history({ verbose: true });
-            var tableHtml = '';
-            for (var i = 0; i < history.length; i += 2) {
-                var moveNum = (i / 2) + 1;
-                var whiteMove = history[i] ? history[i].san : '';
-                var blackMove = history[i + 1] ? history[i + 1].san : '';
-                tableHtml += '<tr><td>' + moveNum + '.</td><td>' + whiteMove + '</td><td>' + blackMove + '</td></tr>';
-            }
-            $('#movesTable').html(tableHtml);
-            var container = $('.moves-box')[0];
-            container.scrollTop = container.scrollHeight;
-        }
-
-        function onDragStart(source, piece, position, orientation) {
-            if (game.game_over()) return false;
-            if ((game.turn() === 'w' && piece.search(/^b/) !== -1) ||
-                (game.turn() === 'b' && piece.search(/^w/) !== -1)) {
-                return false;
-            }
-        }
-
-        function onDrop(source, target) {
-            var move = game.move({
-                from: source,
-                to: target,
-                promotion: 'q'
-            });
-
-            if (move === null) return 'snapback';
-            playMoveSound();
-            updateUI();
-        }
-
-        function onSnapEnd() {
-            board.position(game.fen());
-        }
-
-        var config = {
-            draggable: true,
-            position: 'start',
-            onDragStart: onDragStart,
-            onDrop: onDrop,
-            onSnapEnd: onSnapEnd,
-            pieceTheme: 'https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/img/chesspieces/wikipedia/{piece}.png'
+    function evaluateBoard() {
+        var boardState = game.board();
+        var pieceValues = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
+        var score = 0;
+        var centerSquares = {
+            'd4': true, 'e4': true, 'd5': true, 'e5': true,
+            'c4': true, 'f4': true, 'c5': true, 'f5': true,
+            'c3': true, 'f3': true, 'c6': true, 'f6': true,
+            'd3': true, 'e3': true, 'd6': true, 'e6': true
         };
 
-        board = Chessboard('board', config);
-        updateUI();
+        for (var row = 0; row < 8; row++) {
+            for (var col = 0; col < 8; col++) {
+                var piece = boardState[row][col];
+                if (!piece) continue;
 
-        // Управление звуком
-        $('#soundToggle').on('click', function() {
-            soundEnabled = !soundEnabled;
-            soundIcon.text(soundEnabled ? '🔊' : '🔇');
-        });
+                var square = squareFromCoords(col, row);
+                var value = pieceValues[piece.type];
+                var sign = piece.color === 'w' ? 1 : -1;
 
-        $('#resetBtn').on('click', function() {
-            game.reset();
-            board.start();
-            updateUI();
-        });
+                score += sign * value;
 
-        $('#undoBtn').on('click', function() {
+                if (centerSquares[square]) {
+                    score += sign * 12;
+                }
+
+                if (piece.type === 'p') {
+                    score += sign * (piece.color === 'w' ? row : (7 - row)) * 2;
+                }
+            }
+        }
+
+        if (game.in_check()) {
+            score += game.turn() === 'w' ? -30 : 30;
+        }
+
+        return score;
+    }
+
+    function minimax(depth, alpha, beta, maximizingPlayer) {
+        if (depth === 0 || game.game_over()) {
+            return evaluateBoard();
+        }
+
+        var moves = game.moves({ verbose: true });
+
+        if (game.turn() === maximizingPlayer) {
+            var maxEval = -Infinity;
+
+            for (var i = 0; i < moves.length; i++) {
+                game.move(moves[i]);
+
+                var evalScore = minimax(depth - 1, alpha, beta, maximizingPlayer);
+                game.undo();
+
+                maxEval = Math.max(maxEval, evalScore);
+                alpha = Math.max(alpha, evalScore);
+
+                if (beta <= alpha) {
+                    break;
+                }
+            }
+
+            return maxEval;
+        } else {
+            var minEval = Infinity;
+
+            for (var i = 0; i < moves.length; i++) {
+                game.move(moves[i]);
+
+                var evalScore = minimax(depth - 1, alpha, beta, maximizingPlayer);
+                game.undo();
+
+                minEval = Math.min(minEval, evalScore);
+                beta = Math.min(beta, evalScore);
+
+                if (beta <= alpha) {
+                    break;
+                }
+            }
+
+            return minEval;
+        }
+    }
+
+    function chooseBotMove() {
+        var legalMoves = game.moves({ verbose: true });
+        if (!legalMoves.length) return null;
+
+        var bestMove = legalMoves[0];
+        var bestScore = -Infinity;
+
+        for (var i = 0; i < legalMoves.length; i++) {
+            game.move(legalMoves[i]);
+            var score = minimax(2, -Infinity, Infinity, botColor);
             game.undo();
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = legalMoves[i];
+            }
+        }
+
+        return bestMove;
+    }
+
+    function makeBotMove() {
+        if (botThinking || game.game_over() || game.turn() !== botColor) return;
+
+        botThinking = true;
+
+        setTimeout(function() {
+            var move = chooseBotMove();
+
+            if (!move) {
+                botThinking = false;
+                updateUI();
+                return;
+            }
+
+            game.move(move);
+
+            if (move.flags.includes('c')) {
+                playCaptureSound();
+            } else {
+                playMoveSound();
+            }
+
+            if (!gameStarted) {
+                gameStarted = true;
+                startTimer();
+            }
+
             board.position(game.fen());
             updateUI();
+            botThinking = false;
+
+            if (game.game_over()) {
+                if (timerInterval) clearInterval(timerInterval);
+            }
+        }, 500);
+    }
+
+    function updateUI() {
+        var moveColor = game.turn() === 'w' ? 'Белые' : 'Черные';
+        var moveCount = game.history().length;
+
+        if (game.turn() === 'w') {
+            $('#whitePlayerCard').addClass('active');
+            $('#blackPlayerCard').removeClass('active');
+            $('#whiteStatus').text('Ходит');
+            $('#blackStatus').text('Ждет');
+        } else {
+            $('#blackPlayerCard').addClass('active');
+            $('#whitePlayerCard').removeClass('active');
+            $('#blackStatus').text('Ходит');
+            $('#whiteStatus').text('Ждет');
+        }
+
+        let statusText = moveColor;
+        let statusIcon = '🎮';
+
+        if (game.in_checkmate()) {
+            statusText = 'Мат! Победа ' + (game.turn() === 'w' ? 'Черных' : 'Белых');
+            statusIcon = '♕';
+            playCheckmateSound();
+            if (timerInterval) clearInterval(timerInterval);
+        } else if (game.in_draw()) {
+            statusText = 'Ничья!';
+            statusIcon = '🤝';
+            if (timerInterval) clearInterval(timerInterval);
+        } else if (game.in_check()) {
+            statusText += ' (Шах!)';
+            statusIcon = '⚠️';
+            playCheckSound();
+        }
+
+        $('#gameStatus').html(statusIcon + ' ' + statusText);
+        $('#moveCount').text(moveCount);
+        updateMovesTable();
+    }
+
+    function updateMovesTable() {
+        var history = game.history({ verbose: true });
+        var tableHtml = '';
+
+        for (var i = 0; i < history.length; i += 2) {
+            var moveNum = (i / 2) + 1;
+            var whiteMove = history[i] ? history[i].san : '';
+            var blackMove = history[i + 1] ? history[i + 1].san : '';
+
+            tableHtml += '<tr><td class="move-number">' + moveNum + '.</td><td class="move-white">' + whiteMove + '</td><td class="move-black">' + blackMove + '</td></tr>';
+        }
+
+        $('#movesTable').html(tableHtml);
+        var container = $('.moves-box')[0];
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function onDragStart(source, piece, position, orientation) {
+        if (botThinking || game.game_over()) return false;
+        if (game.turn() === botColor) return false;
+        if ((game.turn() === 'w' && piece.search(/^b/) !== -1) ||
+            (game.turn() === 'b' && piece.search(/^w/) !== -1)) {
+            return false;
+        }
+    }
+
+    function onDrop(source, target) {
+        if (botThinking || game.turn() !== 'w') return 'snapback';
+
+        var move = game.move({
+            from: source,
+            to: target,
+            promotion: 'q'
         });
-    </script>
-</body>
-</html>
+
+        if (move === null) return 'snapback';
+
+        if (move.flags.includes('c')) {
+            playCaptureSound();
+        } else {
+            playMoveSound();
+        }
+
+        if (!gameStarted) {
+            gameStarted = true;
+            startTimer();
+        }
+
+        updateUI();
+
+        if (game.turn() === botColor) {
+            makeBotMove();
+        }
+    }
+
+    function onSnapEnd() {
+        board.position(game.fen());
+    }
+
+    function gameOver(message) {
+        $('#gameStatus').html('🏁 ' + message);
+    }
+
+    var config = {
+        draggable: true,
+        position: 'start',
+        onDragStart: onDragStart,
+        onDrop: onDrop,
+        onSnapEnd: onSnapEnd,
+        pieceTheme: 'https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/img/chesspieces/wikipedia/{piece}.png'
+    };
+
+    initAudio();
+    board = Chessboard('board', config);
+    updateUI();
+    updateTimerDisplay();
+
+    $('#resetBtn').on('click', function() {
+        if (timerInterval) clearInterval(timerInterval);
+        game.reset();
+        board.start();
+        whiteTime = 600;
+        blackTime = 600;
+        gameStarted = false;
+        botThinking = false;
+        updateTimerDisplay();
+        updateUI();
+    });
+
+    $('#undoBtn').on('click', function() {
+        if (botThinking) return;
+        game.undo();
+        board.position(game.fen());
+        updateUI();
+    });
+
+    $('#soundToggle').on('change', function() {
+        soundEnabled = $(this).is(':checked');
+        var icon = soundEnabled ? '🔊' : '🔇';
+        $('#soundIcon').text(icon);
+        if (soundEnabled) initAudio();
+    });
+</script>
